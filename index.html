@@ -124,6 +124,44 @@
             background: linear-gradient(135deg, #f093fb, #f5576c);
         }
 
+        #answerBtn {
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            display: none;
+        }
+
+        #answerBtn.show {
+            display: block;
+        }
+
+        .answer-display {
+            display: none;
+            background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(41, 182, 246, 0.3);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .answer-display.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* 全画面表示用のスタイル */
         .fullscreen-container {
             display: none;
@@ -397,14 +435,14 @@
                     <option value="triangle">三角形</option>
                     <option value="star">星</option>
                     <option value="heart">ハート</option>
-                    <option value="text">テキスト</option>
+                    <option value="text">ひらがな</option>
                 </select>
             </div>
             
             <div class="control-group">
                 <label for="depth">奥行きの強さ:</label>
-                <input type="range" id="depth" min="10" max="50" value="30">
-                <div class="range-value" id="depthValue">30</div>
+                <input type="range" id="depth" min="5" max="30" value="15">
+                <div class="range-value" id="depthValue">15</div>
             </div>
             
             <div class="control-group">
@@ -420,7 +458,10 @@
         <div class="button-group">
             <button onclick="generateStereogram()">ステレオグラムを生成</button>
             <button id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 全画面表示</button>
+            <button id="answerBtn" onclick="showAnswer()">🎯 答えを見る</button>
         </div>
+        
+        <div id="answerDisplay" class="answer-display"></div>
         
         <div id="canvas-container">
             <div class="focus-dots">
@@ -469,14 +510,36 @@
     </div>
 
     <script>
+        let currentWord = ''; // 現在の単語を保存
+        let currentShapeCount = 0; // 現在の形の個数を保存
+        
         // スライダーの値を表示
         document.getElementById('depth').addEventListener('input', function(e) {
             document.getElementById('depthValue').textContent = e.target.value;
         });
 
+        // 形状選択の変更を監視
+        document.getElementById('shape').addEventListener('change', function(e) {
+            const answerBtn = document.getElementById('answerBtn');
+            const answerDisplay = document.getElementById('answerDisplay');
+            
+            if (e.target.value === 'text') {
+                answerBtn.innerHTML = '🎯 答えを見る';
+                answerBtn.classList.add('show');
+            } else if (e.target.value !== 'text') {
+                answerBtn.innerHTML = '🔢 個数を確認';
+                answerBtn.classList.add('show');
+            }
+            answerDisplay.classList.remove('show');
+        });
+
         function generateStereogram() {
             const canvas = document.getElementById('stereogram');
             const container = document.getElementById('canvas-container');
+            
+            // 答え表示をリセット
+            const answerDisplay = document.getElementById('answerDisplay');
+            answerDisplay.classList.remove('show');
             
             // スマホ対応: コンテナの幅に合わせてキャンバスサイズを調整
             const containerWidth = container.clientWidth - 40; // パディングを考慮
@@ -557,71 +620,171 @@
             const centerY = height / 2;
             const size = Math.min(width, height) * 0.3;
             
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = y * width + x;
-                    let isInShape = false;
-                    
-                    const dx = x - centerX;
-                    const dy = y - centerY;
-                    
-                    switch(shape) {
-                        case 'circle':
-                            isInShape = (dx * dx + dy * dy) < (size * size);
-                            break;
-                        case 'square':
-                            isInShape = Math.abs(dx) < size && Math.abs(dy) < size;
-                            break;
-                        case 'triangle':
-                            isInShape = dy > -size && dy < size - Math.abs(dx);
-                            break;
-                        case 'star':
-                            const angle = Math.atan2(dy, dx);
-                            const r = Math.sqrt(dx * dx + dy * dy);
-                            const starRadius = size * (1 + 0.5 * Math.cos(5 * angle));
-                            isInShape = r < starRadius;
-                            break;
-                        case 'heart':
-                            const nx = dx / size;
-                            const ny = -dy / size;
-                            isInShape = (nx * nx + (ny - Math.sqrt(Math.abs(nx))) * (ny - Math.sqrt(Math.abs(nx)))) < 1;
-                            break;
-                        case 'text':
-                            // ランダムな単語を選択
-                            const words = [
-                                "LOVE", "PEACE", "JOY", "HOPE", "DREAM",
-                                "MAGIC", "STAR", "HEART", "SMILE", "HAPPY",
-                                "WONDER", "BELIEVE", "INSPIRE", "CREATE", "SHINE",
-                                "BRAVE", "KIND", "TRUST", "LAUGH", "DANCE",
-                                "友情", "愛", "平和", "希望", "夢",
-                                "笑顔", "幸せ", "奇跡", "勇気", "光"
-                            ];
-                            
-                            // セッションごとに異なる単語を選択（キャンバスサイズを種として使用）
-                            const wordIndex = Math.floor((width * height) % words.length);
-                            const text = words[wordIndex];
-                            
-                            const fontSize = size * 0.8;
-                            const tempCanvas = document.createElement('canvas');
-                            tempCanvas.width = width;
-                            tempCanvas.height = height;
-                            const tempCtx = tempCanvas.getContext('2d');
-                            
-                            // 日本語と英語でフォントを調整
-                            const isJapanese = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text);
-                            const fontFamily = isJapanese ? 'serif' : 'Arial';
-                            
-                            tempCtx.font = `bold ${fontSize}px ${fontFamily}`;
-                            tempCtx.fillStyle = 'white';
-                            tempCtx.textAlign = 'center';
-                            tempCtx.textBaseline = 'middle';
-                            tempCtx.fillText(text, centerX, centerY);
-                            const pixel = tempCtx.getImageData(x, y, 1, 1).data;
-                            isInShape = pixel[0] > 128;
-                            break;
+            // テキスト用のキャンバスを事前に作成（text選択時のみ）
+            let textCanvas, textCtx, textImageData;
+            if (shape === 'text') {
+                // シンプルなひらがなの単語（2-4文字）
+                const words = [
+                    'ねこ', 'いぬ', 'つき', 'ほし', 'はな',
+                    'やま', 'うみ', 'そら', 'あめ', 'ゆき',
+                    'かぜ', 'くも', 'にじ', 'ひる', 'よる',
+                    'あさ', 'ばん', 'ふね', 'とり', 'さる',
+                    'き', 'て', 'め', 'は', 'みみ',
+                    'あし', 'かお', 'くち', 'はな', 'ゆび',
+                    'みず', 'ひ', 'つち', 'いし', 'かわ',
+                    'もり', 'まち', 'いえ', 'みち', 'はし'
+                ];
+                
+                const text = words[Math.floor(Math.random() * words.length)];
+                currentWord = text;
+                
+                // 文字数に応じてフォントサイズを調整
+                let fontSize;
+                if (text.length === 1) {
+                    fontSize = Math.min(height * 0.8, width * 0.6);
+                } else if (text.length === 2) {
+                    fontSize = Math.min(height * 0.7, width / 3);
+                } else if (text.length === 3) {
+                    fontSize = Math.min(height * 0.65, width / 4);
+                } else {
+                    fontSize = Math.min(height * 0.6, width / 5);
+                }
+                
+                textCanvas = document.createElement('canvas');
+                textCanvas.width = width;
+                textCanvas.height = height;
+                textCtx = textCanvas.getContext('2d');
+                
+                // アンチエイリアスを無効化してシャープに
+                textCtx.imageSmoothingEnabled = false;
+                
+                // 背景を完全に黒に
+                textCtx.fillStyle = '#000000';
+                textCtx.fillRect(0, 0, width, height);
+                
+                // シンプルなフォント設定（ゴシック体で統一）
+                textCtx.font = `bold ${fontSize}px "ヒラギノ角ゴ Pro", "Hiragino Kaku Gothic Pro", "メイリオ", Meiryo, "ＭＳ Ｐゴシック", sans-serif`;
+                textCtx.fillStyle = '#FFFFFF';
+                textCtx.textAlign = 'center';
+                textCtx.textBaseline = 'middle';
+                
+                // テキストを描画（シンプルに1回だけ）
+                textCtx.fillText(text, centerX, centerY);
+                
+                // 一度だけImageDataを取得
+                textImageData = textCtx.getImageData(0, 0, width, height).data;
+                
+                // しきい値を使ってノイズを除去
+                for (let i = 0; i < textImageData.length; i += 4) {
+                    if (textImageData[i] < 200) {
+                        textImageData[i] = 0;
+                        textImageData[i + 1] = 0;
+                        textImageData[i + 2] = 0;
+                    } else {
+                        textImageData[i] = 255;
+                        textImageData[i + 1] = 255;
+                        textImageData[i + 2] = 255;
                     }
+                }
+            } else {
+                // 形状の場合、ランダムな個数を生成（1〜5個）
+                currentShapeCount = Math.floor(Math.random() * 5) + 1;
+            }
+            
+            // 形状を描画
+            if (shape !== 'text') {
+                // 複数の形を配置（重ならないように間隔を広げる）
+                const shapeSize = size / (currentShapeCount > 3 ? 2.5 : 2);
+                
+                // 配置位置を事前に計算
+                const positions = [];
+                
+                if (currentShapeCount === 1) {
+                    positions.push({ x: centerX, y: centerY });
+                } else if (currentShapeCount === 2) {
+                    const spacing = width * 0.25;
+                    positions.push({ x: centerX - spacing, y: centerY });
+                    positions.push({ x: centerX + spacing, y: centerY });
+                } else if (currentShapeCount === 3) {
+                    const spacingX = width * 0.2;
+                    const spacingY = height * 0.2;
+                    positions.push({ x: centerX, y: centerY - spacingY });
+                    positions.push({ x: centerX - spacingX, y: centerY + spacingY });
+                    positions.push({ x: centerX + spacingX, y: centerY + spacingY });
+                } else if (currentShapeCount === 4) {
+                    const spacingX = width * 0.18;
+                    const spacingY = height * 0.18;
+                    positions.push({ x: centerX - spacingX, y: centerY - spacingY });
+                    positions.push({ x: centerX + spacingX, y: centerY - spacingY });
+                    positions.push({ x: centerX - spacingX, y: centerY + spacingY });
+                    positions.push({ x: centerX + spacingX, y: centerY + spacingY });
+                } else {
+                    // 5個の場合（十字配置、より広い間隔）
+                    const spacingX = width * 0.22;
+                    const spacingY = height * 0.22;
+                    positions.push({ x: centerX, y: centerY });
+                    positions.push({ x: centerX - spacingX, y: centerY });
+                    positions.push({ x: centerX + spacingX, y: centerY });
+                    positions.push({ x: centerX, y: centerY - spacingY });
+                    positions.push({ x: centerX, y: centerY + spacingY });
+                }
+                
+                // 各形状を描画
+                for (let i = 0; i < currentShapeCount; i++) {
+                    const shapeCenterX = positions[i].x;
+                    const shapeCenterY = positions[i].y;
                     
-                    depthMap[idx] = isInShape ? 255 : 0;
+                    // 各ピクセルをチェック
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const idx = y * width + x;
+                            
+                            const dx = x - shapeCenterX;
+                            const dy = y - shapeCenterY;
+                            const dx2 = dx * dx;
+                            const dy2 = dy * dy;
+                            let isInShape = false;
+                            
+                            switch(shape) {
+                                case 'circle':
+                                    isInShape = (dx2 + dy2) < (shapeSize * shapeSize);
+                                    break;
+                                case 'square':
+                                    isInShape = Math.abs(dx) < shapeSize && Math.abs(dy) < shapeSize;
+                                    break;
+                                case 'triangle':
+                                    isInShape = dy > -shapeSize && dy < shapeSize - Math.abs(dx * 1.5);
+                                    break;
+                                case 'star':
+                                    const angle = Math.atan2(dy, dx);
+                                    const r = Math.sqrt(dx2 + dy2);
+                                    const starRadius = shapeSize * (1 + 0.4 * Math.cos(5 * angle));
+                                    isInShape = r < starRadius;
+                                    break;
+                                case 'heart':
+                                    const nx = dx / shapeSize;
+                                    const ny = -dy / shapeSize;
+                                    const sqrtAbsNx = Math.sqrt(Math.abs(nx));
+                                    const nyMinusSqrt = ny - sqrtAbsNx;
+                                    isInShape = (nx * nx + nyMinusSqrt * nyMinusSqrt) < 1;
+                                    break;
+                            }
+                            
+                            if (isInShape) {
+                                depthMap[idx] = 255;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // テキストの場合の処理
+                for (let y = 0; y < height; y++) {
+                    const rowOffset = y * width;
+                    for (let x = 0; x < width; x++) {
+                        const idx = rowOffset + x;
+                        const pixelIdx = idx * 4;
+                        depthMap[idx] = textImageData[pixelIdx] > 200 ? 255 : 0;
+                    }
                 }
             }
             
@@ -631,31 +794,35 @@
         function generatePattern(width, height, type) {
             const pattern = new Uint8Array(width * height * 4);
             
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    
-                    switch(type) {
-                        case 'dots':
-                            const value = Math.random() > 0.5 ? 255 : 0;
-                            pattern[idx] = value;
-                            pattern[idx + 1] = value;
-                            pattern[idx + 2] = value;
-                            break;
-                        case 'stripes':
+            if (type === 'dots') {
+                // ランダムドット：より高速な生成
+                for (let i = 0; i < pattern.length; i += 4) {
+                    const value = Math.random() > 0.5 ? 255 : 0;
+                    pattern[i] = value;
+                    pattern[i + 1] = value;
+                    pattern[i + 2] = value;
+                    pattern[i + 3] = 255;
+                }
+            } else {
+                // ストライプとグラデーション：行ベースで処理
+                for (let y = 0; y < height; y++) {
+                    const rowOffset = y * width * 4;
+                    for (let x = 0; x < width; x++) {
+                        const idx = rowOffset + x * 4;
+                        
+                        if (type === 'stripes') {
                             const stripeValue = (x % 10 < 5) ? 255 : 0;
                             pattern[idx] = stripeValue;
                             pattern[idx + 1] = stripeValue;
                             pattern[idx + 2] = stripeValue;
-                            break;
-                        case 'gradient':
+                        } else { // gradient
                             const gradValue = (x + y) % 256;
                             pattern[idx] = gradValue;
                             pattern[idx + 1] = (gradValue + 85) % 256;
                             pattern[idx + 2] = (gradValue + 170) % 256;
-                            break;
+                        }
+                        pattern[idx + 3] = 255;
                     }
-                    pattern[idx + 3] = 255;
                 }
             }
             
@@ -734,6 +901,26 @@
 
         function skipRotationHint() {
             document.getElementById('rotationHint').classList.remove('show');
+        }
+
+        function showAnswer() {
+            const answerDisplay = document.getElementById('answerDisplay');
+            const shape = document.getElementById('shape').value;
+            
+            if (shape === 'text' && currentWord) {
+                answerDisplay.innerHTML = `答え: <span style="font-size: 2em;">${currentWord}</span>`;
+                answerDisplay.classList.add('show');
+            } else if (shape !== 'text' && currentShapeCount > 0) {
+                const shapeName = {
+                    'circle': '円',
+                    'square': '四角形',
+                    'triangle': '三角形',
+                    'star': '星',
+                    'heart': 'ハート'
+                }[shape];
+                answerDisplay.innerHTML = `答え: <span style="font-size: 2em;">${shapeName}が${currentShapeCount}個</span>`;
+                answerDisplay.classList.add('show');
+            }
         }
 
         // 初期生成
