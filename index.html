@@ -694,7 +694,7 @@
             // 形状を描画
             if (shape !== 'text') {
                 // 複数の形を配置（重ならないように間隔を広げる）
-                const shapeSize = size / (currentShapeCount > 3 ? 2.5 : 2);
+                const shapeSize = currentShapeCount > 3 ? size / 3 : size / 2.2;
                 
                 // 配置位置を事前に計算
                 const positions = [];
@@ -720,8 +720,8 @@
                     positions.push({ x: centerX + spacingX, y: centerY + spacingY });
                 } else {
                     // 5個の場合（十字配置、より広い間隔）
-                    const spacingX = width * 0.22;
-                    const spacingY = height * 0.22;
+                    const spacingX = width * 0.2;
+                    const spacingY = height * 0.18;
                     positions.push({ x: centerX, y: centerY });
                     positions.push({ x: centerX - spacingX, y: centerY });
                     positions.push({ x: centerX + spacingX, y: centerY });
